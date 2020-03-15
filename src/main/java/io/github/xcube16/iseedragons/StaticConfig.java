@@ -47,8 +47,23 @@ public class StaticConfig {
     @Config.Comment("A list of items that need to do extra damage to undead enemies")
     @Config.Name("ExtraUndeadDamage")
     public static Map<String, Float> extraUndeadDamage;
+    
+    @Config.Comment("Myrmex AI updateTask delay for some AI behavior, higher values is higher performance at the cost of less intelligent myrmex. Vanilla is 1")
+    @Config.Name("MyrmexUpdateTaskDelay")
+    @Config.RangeInt(min=1, max=40)
+    public static int myrmexupdatetaskdelay;
+    
+    @Config.Comment("Myrmex AI task delay for all AI behavior, higher value is higher performance at the cost of less intelligent myrmex. Vanilla is 3. Changing this won't change currently loaded myrmex.")
+    @Config.Name("MyrmexAllTaskDelay")
+    @Config.RangeInt(min=3, max=20) //max 20?
+    public static int myrmexalltaskdelay;
+    
+    
 
     static {
+    	myrmexalltaskdelay = 12;
+    	myrmexupdatetaskdelay = 15;
+    	
         distanceOverrides = new LinkedHashMap<>();
         distanceOverrides.put("iceandfire:firedragon", 256);
         distanceOverrides.put("iceandfire:icedragon", 256);

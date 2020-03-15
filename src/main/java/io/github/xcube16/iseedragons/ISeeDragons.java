@@ -1,6 +1,8 @@
 package io.github.xcube16.iseedragons;
 
 import com.google.common.collect.BiMap;
+
+import io.github.xcube16.iseedragons.ai.MyrmexHandler;
 import net.minecraft.block.Block;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.entity.Entity;
@@ -54,7 +56,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ISeeDragons {
     public static final String MODID = "iseedragons";
     public static final String NAME = "ISeeDragons";
-    public static final String VERSION = "0.12";
+    public static final String VERSION = "0.13";
     public static final Logger logger = LogManager.getLogger(NAME);
 
     @Nullable // lazy init
@@ -153,9 +155,14 @@ public class ISeeDragons {
             if(!found_listener)
             {
                 logger.error("Could not find toughasnails ThirstStatHandler event listener");
-                return;
             }
         }
+        if(Loader.isModLoaded("iceandfire"))
+        {
+        	 logger.info("Registering MyrmexHandler...");
+        	MinecraftForge.EVENT_BUS.register(new MyrmexHandler());
+        }
+        	
     }
 
     private void fixToolRepair(String toolId, String repairItemId, int meta) {

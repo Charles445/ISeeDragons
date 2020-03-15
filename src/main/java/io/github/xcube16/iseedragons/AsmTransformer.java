@@ -24,7 +24,12 @@ public class AsmTransformer implements IClassTransformer {
 				transformedName.equals("net.minecraft.advancements.AdvancementManager") ||
 				/*transformedName.equals("net.minecraft.advancements.AdvancementRewards$Deserializer")*/
 				transformedName.equals("net.minecraftforge.common.ForgeHooks") ||
-			    transformedName.equals("com.github.alexthe666.iceandfire.entity.EntityMyrmexEgg")) {
+				transformedName.equals("com.github.alexthe666.iceandfire.entity.EntityMyrmexEgg") ||
+				transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIForage") ||
+				transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIFindHidingSpot") ||
+				transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIReEnterHive") ||
+				transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIEscortEntity"))
+		{
 
 			ISeeDragons.logger.info("ATTEMPTING TO PATCH " + transformedName + "!");
 
@@ -33,6 +38,7 @@ public class AsmTransformer implements IClassTransformer {
 				ClassNode node = new ClassNode();
 				reader.accept(node, 0);
 
+				boolean frames = false;
 				boolean success = true;
 				if (transformedName.equals("com.github.alexthe666.iceandfire.item.ItemModAxe")) {
 					success = fixItemModAxe(node);
@@ -56,14 +62,27 @@ public class AsmTransformer implements IClassTransformer {
 					}
 				} else if (transformedName.equals("com.github.alexthe666.iceandfire.entity.EntityMyrmexEgg")) {
 					success = fixMyrmexEggDupe(node);
-				}/* else if (transformedName.equals("net.minecraft.advancements.AdvancementRewards$Deserializer")) {
+				} else if (transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIForage")) {
+					frames = true;
+					success = myrmexAI(node, transformedName);
+				} else if (transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIFindHidingSpot")) {
+					frames = true;
+					success = myrmexAI(node, transformedName);
+				} else if (transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIReEnterHive")) {
+					frames = true;
+					success = myrmexAI(node, transformedName);
+				} else if (transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIEscortEntity")) {
+					frames = true;
+					success = myrmexAI(node, transformedName);
+				} 
+				/* else if (transformedName.equals("net.minecraft.advancements.AdvancementRewards$Deserializer")) {
 					success = fixAdvancementRewards(node);
 				}*/ else {
 					success = false; // should not happen
 				}
 
 				if(success) {
-					ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS/* + ClassWriter.COMPUTE_FRAMES can't use, or ku-boom*/);
+					ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS | (frames?ClassWriter.COMPUTE_FRAMES:0));/* + ClassWriter.COMPUTE_FRAMES can't use, or ku-boom*/
 					//node.accept(writer);
 					node.accept(new CheckClassAdapter(writer));
 					bytes = writer.toByteArray();
@@ -396,5 +415,59 @@ public class AsmTransformer implements IClassTransformer {
 
 		return true;
 	}*/
+	
+	private boolean myrmexAI(ClassNode classNode, String transformedName) throws NoSuchMethodException
+	{
+		boolean flag = false;
+		
+		String tickVar_Owner = transformedName.replace('.', '/');
+		String tickVar_Name = "isdTickDelay";
+		String tickVar_Desc = "I";
+		
+		String myrmexConfig_Owner = "io/github/xcube16/iseedragons/StaticConfig";
+		String myrmexConfig_Name = "myrmexupdatetaskdelay";
+		String myrmexConfig_Desc = "I";
+		
+		//transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIForage") (75246)
+		//transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIFindHidingSpot") (75246)
+		//transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIReEnterHive") (75246)
+		//transformedName.equals("com.github.alexthe666.iceandfire.entity.ai.MyrmexAIEscortEntity") (75246)
+		
+		//func_75250_a returns boolean (not changing this due to task imbalancing)
+		//func_75246_d returns void
+		
+		classNode.fields.add(new FieldNode(Opcodes.ACC_PRIVATE, tickVar_Name, tickVar_Desc, null, (Integer)0));
+		
+		//func_75246_d (updateTask)
+		MethodNode methodNode = findMethod(classNode, "func_75246_d", "()V");
+		
+		InsnList insert = new InsnList();
+		LabelNode continueLabel = new LabelNode();
+		
+		//--isdTickDelay;
+		insert.add(new VarInsnNode(Opcodes.ALOAD, 0)); 												//ALOAD 0
+		insert.add(new VarInsnNode(Opcodes.ALOAD, 0)); 												//ALOAD 0
+		insert.add(new FieldInsnNode(Opcodes.GETFIELD, tickVar_Owner, tickVar_Name, tickVar_Desc)); //GETFIELD isdTickDelay
+		insert.add(new InsnNode(Opcodes.ICONST_1)); 												//ICONST_1
+		insert.add(new InsnNode(Opcodes.ISUB)); 													//ISUB
+		insert.add(new FieldInsnNode(Opcodes.PUTFIELD, tickVar_Owner, tickVar_Name, tickVar_Desc)); //PUTFIELD isdTickDelay
+		
+		//if(this.isdTickDelay > 0)
+		//	return;
+		insert.add(new VarInsnNode(Opcodes.ALOAD, 0)); 												//ALOAD 0
+		insert.add(new FieldInsnNode(Opcodes.GETFIELD, tickVar_Owner, tickVar_Name, tickVar_Desc)); //GETFIELD isdTickDelay
+		insert.add(new JumpInsnNode(Opcodes.IFLE, continueLabel)); 									//IFLE continueLabel
+		insert.add(new InsnNode(Opcodes.RETURN)); 													//return (void)
+		insert.add(continueLabel);																	//Label continueLabel
+		
+		//isdTickDelay = StaticConfig.myrmexdelay
+		insert.add(new VarInsnNode(Opcodes.ALOAD, 0)); 																//ALOAD 0
+		insert.add(new FieldInsnNode(Opcodes.GETSTATIC, myrmexConfig_Owner, myrmexConfig_Name, myrmexConfig_Desc)); //GETSTATIC myrmexdelay
+		insert.add(new FieldInsnNode(Opcodes.PUTFIELD, tickVar_Owner, tickVar_Name, tickVar_Desc)); 				//PUTFIELD isdTickDelay
+		methodNode.instructions.insertBefore(methodNode.instructions.getFirst(), insert);
+		flag = true;
+		
+		return flag;
+	}
 }
 
